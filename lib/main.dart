@@ -1,37 +1,21 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:emotion_app/core/di/ConfigureProviders.dart';
+import 'package:emotion_app/ui/mood/shellviewmodel.dart';
+import 'package:emotion_app/ui/mood/dashboard_view.dart';
+import 'package:emotion_app/ui/mood/MoodView.dart';
+import 'package:emotion_app/ui/mood/tipsView.dart';
+import 'package:emotion_app/ui/mood/settingsView.dart';
 
-import 'ui/mood/shellviewmodel.dart';
-import 'ui/mood/dashboard_viewmodel.dart';
-import 'ui/mood/mood_viewmodel.dart';
-import 'ui/mood/dashboard_view.dart';
-import 'ui/mood/MoodView.dart';
-import 'ui/mood/tips_view.dart';
-import 'data/services/mood_service.dart';
-import 'data/repositories/mood_repository.dart';
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() {
+  final data = await ConfigureProviders.createDependencyTree();
+
   runApp(
     MultiProvider(
-      providers: [
-        // Serviços compartilhados
-        Provider(create: (_) => MoodService()),
-        Provider(create: (_) => MoodRepository(MoodService())),
-        
-        // ViewModels
-        ChangeNotifierProvider(create: (_) => ShellViewModel()),
-        ChangeNotifierProvider(
-          create: (context) => MoodViewModel(
-            context.read<MoodRepository>(),
-          ),
-        ),
-        ChangeNotifierProvider(
-          create: (context) => DashboardViewModel(
-            repository: context.read<MoodRepository>(),
-          ),
-        ),
-      ],
+      providers: data.providers,
       child: const MyApp(),
     ),
   );
@@ -54,6 +38,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// AppShell permanece igual
 class AppShell extends StatelessWidget {
   const AppShell({super.key});
 
@@ -68,6 +53,22 @@ class AppShell extends StatelessWidget {
         ];
 
         return Scaffold(
+          appBar: AppBar(
+            title: const Text('Diário de Humor'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsView(),
+                    ),
+                  );
+                },
+                tooltip: 'Configurações',
+              ),
+            ],
+          ),
           body: screens[shellVM.currentIndex],
           bottomNavigationBar: NavigationBar(
             selectedIndex: shellVM.currentIndex,

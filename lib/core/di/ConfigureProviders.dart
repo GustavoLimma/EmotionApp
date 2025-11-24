@@ -6,7 +6,9 @@ import 'package:emotion_app/data/services/mood_service.dart';
 import 'package:emotion_app/data/repositories/mood_repository.dart';
 import 'package:emotion_app/ui/mood/mood_viewmodel.dart';
 import 'package:emotion_app/ui/mood/shellviewmodel.dart';
-import '../../ui/mood/Dashboard_viewModel.dart';
+import 'package:emotion_app/ui/mood/dashboard_viewmodel.dart';
+import 'package:emotion_app/ui/mood/tipsViewModel.dart';
+import 'package:emotion_app/ui/mood/settingsViewModel.dart';
 
 class ConfigureProviders {
   final List<SingleChildWidget> providers;
@@ -19,7 +21,9 @@ class ConfigureProviders {
 
     final moodViewModel = MoodViewModel(repository);
     final shellViewModel = ShellViewModel();
-    final dashboardViewModel = DashboardViewModel(); // <-- corrigido
+    final dashboardViewModel = DashboardViewModel(repository: repository);
+    final tipsViewModel = TipsViewModel(repository: repository);
+    final settingsViewModel = SettingsViewModel();
 
     return ConfigureProviders(
       providers: [
@@ -32,7 +36,9 @@ class ConfigureProviders {
         /// ViewModels
         ChangeNotifierProvider<MoodViewModel>.value(value: moodViewModel),
         ChangeNotifierProvider<ShellViewModel>.value(value: shellViewModel),
-        ChangeNotifierProvider<DashboardViewModel>.value(value: dashboardViewModel), // <-- corrigido
+        ChangeNotifierProvider<DashboardViewModel>.value(value: dashboardViewModel),
+        ChangeNotifierProvider<TipsViewModel>.value(value: tipsViewModel),
+        ChangeNotifierProvider<SettingsViewModel>.value(value: settingsViewModel),
       ],
     );
   }

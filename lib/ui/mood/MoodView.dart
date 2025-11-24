@@ -31,20 +31,16 @@ class MoodView extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ---------- TÍTULO ----------
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Diário de Humor",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-                ),
-                IconButton(
-                  tooltip: "Recarregar",
-                  onPressed: () => vm.loadMoods.execute(""),
-                  icon: const Icon(Icons.refresh),
-                )
-              ],
-            ),
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    const Text(
+      "Diário de Humor",
+      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+    ),
+    // REMOVA o IconButton de refresh aqui
+  ],
+),
 
             const SizedBox(height: 16),
 

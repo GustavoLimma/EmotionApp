@@ -59,10 +59,8 @@ class DashboardViewModel extends ChangeNotifier {
       return;
     }
 
-    // SEMPRE atualiza o gráfico de pizza (é o mesmo para ambos os períodos)
     _updatePieChart();
 
-    // Atualiza o gráfico de linha baseado no período selecionado
     if (_period == DashboardPeriod.weekly) {
       _updateWeeklyChart();
     } else {
@@ -98,40 +96,39 @@ class DashboardViewModel extends ChangeNotifier {
   void _updateMonthlyChart() {
     final now = DateTime.now();
     final firstDayOfMonth = DateTime(now.year, now.month, 1);
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
     
-    // Cria uma lista com todos os dias do mês atual
-    final daysOfMonth = List.generate(daysInMonth, (i) => 
-        DateTime(now.year, now.month, i + 1));
+    // Divide o mês em 4 semanas fixas
+    lineChartData = List<double>.filled(4, 0.0);
     
-    lineChartData = daysOfMonth.map((day) {
-      final count = _allEntries.where((entry) => 
-          entry.timestamp.year == day.year &&
-          entry.timestamp.month == day.month &&
-          entry.timestamp.day == day.day).length;
-      return count.toDouble();
-    }).toList();
+    for (var entry in _allEntries) {
+      if (entry.timestamp.year == now.year && entry.timestamp.month == now.month) {
+        final day = entry.timestamp.day;
+        final weekIndex = _getWeekIndex(day);
+        if (weekIndex >= 0 && weekIndex < 4) {
+          lineChartData![weekIndex] += 1;
+        }
+      }
+    }
   }
 
-  // GRÁFICO DE BARRAS (agora adaptável ao período)
+  int _getWeekIndex(int day) {
+    if (day <= 7) return 0;      // Semana 1: dias 1-7
+    if (day <= 14) return 1;     // Semana 2: dias 8-14
+    if (day <= 21) return 2;     // Semana 3: dias 15-21
+    return 3;                    // Semana 4: dias 22+
+  }
+
+  // GRÁFICO DE BARRAS SIMPLIFICADO
   Widget _buildBarChart() {
+    // CORREÇÃO: Converter int para double explicitamente
     final maxValue = lineChartData!.reduce((a, b) => a > b ? a : b);
     
     List<String> labels;
     if (_period == DashboardPeriod.weekly) {
       labels = ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'Hoje'];
     } else {
-      // Para mensal, mostra semanas ou dias específicos
-      final now = DateTime.now();
-      final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-      
-      if (daysInMonth <= 31) {
-        // Se o mês tem até 31 dias, mostra por semana
-        labels = _getMonthlyWeekLabels();
-      } else {
-        // Para meses mais longos, mostra por década
-        labels = _getMonthlyDecadeLabels();
-      }
+      labels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4+']; // Apenas 4 barras
     }
     
     return Padding(
@@ -141,7 +138,7 @@ class DashboardViewModel extends ChangeNotifier {
           Text(
             _period == DashboardPeriod.weekly 
                 ? "Registros dos Últimos 7 Dias"
-                : "Registros do Mês Atual",
+                : "Registros do Mês por Semana",
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
@@ -150,47 +147,47 @@ class DashboardViewModel extends ChangeNotifier {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: lineChartData!.asMap().entries.map((entry) {
-                final height = (entry.value / (maxValue > 0 ? maxValue : 1)) * 120;
-                final label = entry.key < labels.length ? labels[entry.key] : '${entry.key + 1}';
+                // CORREÇÃO: Garantir que estamos trabalhando com double
+                final value = entry.value;
+                final max = maxValue > 0 ? maxValue : 1.0;
+                final height = (value / max) * 120;
+                final barWidth = _period == DashboardPeriod.weekly ? 25 : 30;
+                final fontSize = _period == DashboardPeriod.weekly ? 12 : 11;
                 
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Container(
-                      width: _period == DashboardPeriod.weekly ? 25 : 20, // Mais fino para mensal
+                      width: barWidth.toDouble(), // CORREÇÃO: Converter para double
                       height: height,
                       decoration: BoxDecoration(
-                        color: _getBarColor(entry.value),
-                        borderRadius: BorderRadius.circular(8),
+                        color: _getBarColor(value),
+                        borderRadius: BorderRadius.circular(6),
                         gradient: LinearGradient(
                           begin: Alignment.bottomCenter,
                           end: Alignment.topCenter,
-                          colors: [
-                            _period == DashboardPeriod.weekly 
-                                ? Colors.indigo.shade700 
-                                : Colors.purple.shade700,
-                            _period == DashboardPeriod.weekly 
-                                ? Colors.indigo.shade400 
-                                : Colors.purple.shade400,
-                          ],
+                          colors: _getBarGradientColors(),
                         ),
                       ),
                       child: Center(
                         child: Text(
-                          entry.value.toInt().toString(),
-                          style: const TextStyle(
+                          value.toInt().toString(),
+                          style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 10, // Texto menor para mensal
+                            fontSize: fontSize.toDouble(), // CORREÇÃO: Converter para double
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: _period == DashboardPeriod.weekly ? 12 : 10,
+                    SizedBox(
+                      width: 45, // Largura fixa para os labels
+                      child: Text(
+                        labels[entry.key],
+                        style: TextStyle(fontSize: _period == DashboardPeriod.weekly ? 12 : 10),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
                       ),
                     ),
                   ],
@@ -203,22 +200,26 @@ class DashboardViewModel extends ChangeNotifier {
     );
   }
 
-  List<String> _getMonthlyWeekLabels() {
-    final now = DateTime.now();
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final weeksInMonth = (daysInMonth / 7).ceil();
-    
-    return List.generate(weeksInMonth, (i) => 'S${i + 1}');
+  List<Color> _getBarGradientColors() {
+    if (_period == DashboardPeriod.weekly) {
+      return [Colors.indigo.shade700, Colors.indigo.shade400];
+    } else {
+      return [Colors.purple.shade700, Colors.purple.shade400];
+    }
   }
 
-  List<String> _getMonthlyDecadeLabels() {
-    return ['1-10', '11-20', '21-31', '32+'];
+  Color _getBarColor(double value) {
+    if (value == 0) return Colors.grey.shade400;
+    if (value <= 1) return Colors.green;
+    if (value <= 2) return Colors.blue;
+    return _period == DashboardPeriod.weekly ? Colors.indigo : Colors.purple;
   }
 
-  // VISUALIZAÇÃO DE PIZZA (mantém igual)
+  // VISUALIZAÇÃO DE PIZZA
   Widget _buildPieChartVisualization() {
-    final total = pieChartData!.values.reduce((a, b) => a + b);
-    final maxCount = pieChartData!.values.reduce((a, b) => a > b ? a : b);
+    // CORREÇÃO: Converter int para double explicitamente
+    final total = pieChartData!.values.reduce((a, b) => a + b).toDouble();
+    final maxCount = pieChartData!.values.reduce((a, b) => a > b ? a : b).toDouble();
     
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -300,7 +301,7 @@ class DashboardViewModel extends ChangeNotifier {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'Total: $total registros',
+                  'Total: ${total.toInt()} registros', // CORREÇÃO: Converter para int para exibir
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -315,13 +316,6 @@ class DashboardViewModel extends ChangeNotifier {
         ],
       ),
     );
-  }
-
-  Color _getBarColor(double value) {
-    if (value == 0) return Colors.grey;
-    if (value <= 1) return Colors.green;
-    if (value <= 2) return Colors.blue;
-    return _period == DashboardPeriod.weekly ? Colors.indigo : Colors.purple;
   }
 
   Color _getColorForEmoji(String emoji) {
