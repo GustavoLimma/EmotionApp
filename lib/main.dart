@@ -1,15 +1,19 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart'; // ✅ ADICIONE
 import 'package:emotion_app/core/di/ConfigureProviders.dart';
 import 'package:emotion_app/ui/mood/shellviewmodel.dart';
 import 'package:emotion_app/ui/mood/dashboard_view.dart';
 import 'package:emotion_app/ui/mood/MoodView.dart';
 import 'package:emotion_app/ui/mood/tipsView.dart';
 import 'package:emotion_app/ui/mood/settingsView.dart';
+// import 'firebase_options.dart'; // ✅ MANTENHA (será gerado)
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp();
 
   final data = await ConfigureProviders.createDependencyTree();
 
@@ -21,6 +25,7 @@ Future<void> main() async {
   );
 }
 
+// ✅ O RESTO DO SEU CÓDIGO PERMANECE EXATAMENTE IGUAL
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 

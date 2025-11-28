@@ -1,4 +1,3 @@
-// CORRIGIDO - lib/ui/mood/dashboard_viewmodel.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:emotion_app/data/repositories/mood_repository.dart';
@@ -10,6 +9,7 @@ class DashboardViewModel extends ChangeNotifier {
   final MoodRepository? _repository;
   DashboardPeriod _period = DashboardPeriod.weekly;
   List<MoodEntry> _allEntries = [];
+  String? _errorMessage;
   
   StreamSubscription<List<MoodEntry>>? _entriesSubscription;
 
@@ -21,6 +21,8 @@ class DashboardViewModel extends ChangeNotifier {
   DashboardPeriod get period => _period;
   List<double>? lineChartData;
   Map<String, double>? pieChartData;
+  String? get errorMessage => _errorMessage;
+  bool get hasError => _errorMessage != null;
 
   Widget? get lineChartWidget {
     if (lineChartData == null) return null;
@@ -39,17 +41,31 @@ class DashboardViewModel extends ChangeNotifier {
   }
 
   Future<void> _loadInitialData() async {
-    if (_repository != null) {
-      _allEntries = await _repository!.getAll();
-      _updateCharts();
+    try {
+      _errorMessage = null;
+      if (_repository != null) {
+        _allEntries = await _repository!.getAll();
+        _updateCharts();
+        notifyListeners();
+      }
+    } catch (e) {
+      _errorMessage = 'Erro ao carregar dados: $e';
+      lineChartData = null;
+      pieChartData = null;
       notifyListeners();
     }
   }
 
   void _updateData(List<MoodEntry> entries) {
-    _allEntries = entries;
-    _updateCharts();
-    notifyListeners();
+    try {
+      _errorMessage = null;
+      _allEntries = entries;
+      _updateCharts();
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Erro ao atualizar dados: $e';
+      notifyListeners();
+    }
   }
 
   void _updateCharts() {
@@ -95,8 +111,9 @@ class DashboardViewModel extends ChangeNotifier {
 
   void _updateMonthlyChart() {
     final now = DateTime.now();
-    final firstDayOfMonth = DateTime(now.year, now.month, 1);
-    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+    // REMOVA as variáveis não utilizadas:
+    // final firstDayOfMonth = DateTime(now.year, now.month, 1);
+    // final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
     
     // Divide o mês em 4 semanas fixas
     lineChartData = List<double>.filled(4, 0.0);
@@ -113,22 +130,21 @@ class DashboardViewModel extends ChangeNotifier {
   }
 
   int _getWeekIndex(int day) {
-    if (day <= 7) return 0;      // Semana 1: dias 1-7
-    if (day <= 14) return 1;     // Semana 2: dias 8-14
-    if (day <= 21) return 2;     // Semana 3: dias 15-21
-    return 3;                    // Semana 4: dias 22+
+    if (day <= 7) return 0;
+    if (day <= 14) return 1;
+    if (day <= 21) return 2;
+    return 3;
   }
 
   // GRÁFICO DE BARRAS SIMPLIFICADO
   Widget _buildBarChart() {
-    // CORREÇÃO: Converter int para double explicitamente
     final maxValue = lineChartData!.reduce((a, b) => a > b ? a : b);
     
     List<String> labels;
     if (_period == DashboardPeriod.weekly) {
       labels = ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'Hoje'];
     } else {
-      labels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4+']; // Apenas 4 barras
+      labels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4+'];
     }
     
     return Padding(
@@ -147,7 +163,6 @@ class DashboardViewModel extends ChangeNotifier {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: lineChartData!.asMap().entries.map((entry) {
-                // CORREÇÃO: Garantir que estamos trabalhando com double
                 final value = entry.value;
                 final max = maxValue > 0 ? maxValue : 1.0;
                 final height = (value / max) * 120;
@@ -158,7 +173,7 @@ class DashboardViewModel extends ChangeNotifier {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Container(
-                      width: barWidth.toDouble(), // CORREÇÃO: Converter para double
+                      width: barWidth.toDouble(),
                       height: height,
                       decoration: BoxDecoration(
                         color: _getBarColor(value),
@@ -175,14 +190,14 @@ class DashboardViewModel extends ChangeNotifier {
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: fontSize.toDouble(), // CORREÇÃO: Converter para double
+                            fontSize: fontSize.toDouble(),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
-                      width: 45, // Largura fixa para os labels
+                      width: 45,
                       child: Text(
                         labels[entry.key],
                         style: TextStyle(fontSize: _period == DashboardPeriod.weekly ? 12 : 10),
@@ -217,7 +232,6 @@ class DashboardViewModel extends ChangeNotifier {
 
   // VISUALIZAÇÃO DE PIZZA
   Widget _buildPieChartVisualization() {
-    // CORREÇÃO: Converter int para double explicitamente
     final total = pieChartData!.values.reduce((a, b) => a + b).toDouble();
     final maxCount = pieChartData!.values.reduce((a, b) => a > b ? a : b).toDouble();
     
@@ -301,7 +315,7 @@ class DashboardViewModel extends ChangeNotifier {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'Total: ${total.toInt()} registros', // CORREÇÃO: Converter para int para exibir
+                  'Total: ${total.toInt()} registros',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,

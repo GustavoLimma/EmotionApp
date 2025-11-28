@@ -1,12 +1,11 @@
-// lib/ui/mood/tips_viewmodel.dart
 import 'package:flutter/material.dart';
 import 'package:emotion_app/data/repositories/mood_repository.dart';
 import 'package:emotion_app/data/models/mood_entry.dart';
 
 class TipsViewModel extends ChangeNotifier {
   final MoodRepository? _repository;
-  List<MoodEntry> _entries = [];
-  List<Tip> _tips = [];
+  final List<MoodEntry> _entries = []; // TORNE FINAL
+  final List<Tip> _tips = []; // TORNE FINAL
 
   TipsViewModel({MoodRepository? repository}) : _repository = repository {
     _loadData();
@@ -17,7 +16,7 @@ class TipsViewModel extends ChangeNotifier {
 
   Future<void> _loadData() async {
     if (_repository != null) {
-      _entries = await _repository!.getAll();
+      _entries.addAll(await _repository!.getAll()); // USE addAll
       _generateTips();
       notifyListeners();
     }
@@ -29,18 +28,16 @@ class TipsViewModel extends ChangeNotifier {
     if (_entries.isEmpty) {
       _tips.add(Tip(
         title: "Comece a registrar seu humor",
-        description: "Registre como você está se sentendo para receber dicas personalizadas",
+        description: "Registre como você está se sentindo para receber dicas personalizadas",
         category: TipCategory.general,
         emoji: "📝",
       ));
       return;
     }
 
-    // Analisa os últimos 7 dias
     final last7Days = _getLast7DaysEntries();
     final moodAnalysis = _analyzeMoodPatterns(last7Days);
 
-    // Gera dicas baseadas na análise
     _generateMoodBasedTips(moodAnalysis);
     _generateGeneralTips();
   }
@@ -91,7 +88,6 @@ class TipsViewModel extends ChangeNotifier {
   }
 
   void _generateMoodBasedTips(MoodAnalysis analysis) {
-    // Dicas para humor triste
     if (analysis.sadPercentage > 30) {
       _tips.add(Tip(
         title: "Atividade Física Leve",
@@ -111,7 +107,6 @@ class TipsViewModel extends ChangeNotifier {
       ));
     }
 
-    // Dicas para estresse
     if (analysis.stressedPercentage > 20) {
       _tips.add(Tip(
         title: "Respiração 4-7-8",
@@ -130,7 +125,6 @@ class TipsViewModel extends ChangeNotifier {
       ));
     }
 
-    // Dicas para humor neutro (quando não há muitas emoções fortes)
     if (analysis.neutralPercentage > 50) {
       _tips.add(Tip(
         title: "Leitura Inspiradora",
@@ -142,7 +136,6 @@ class TipsViewModel extends ChangeNotifier {
       ));
     }
 
-    // Dicas gerais baseadas nos padrões
     if (analysis.happyPercentage > 60) {
       _tips.add(Tip(
         title: "Mantenha o Momentum",
@@ -154,7 +147,6 @@ class TipsViewModel extends ChangeNotifier {
   }
 
   void _generateGeneralTips() {
-    // Dicas gerais que sempre aparecem
     _tips.addAll([
       Tip(
         title: "Journaling Diário",

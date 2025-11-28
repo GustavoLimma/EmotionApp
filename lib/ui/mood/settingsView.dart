@@ -1,7 +1,7 @@
 // lib/ui/settings/settings_view.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:emotion_app/ui/mood/settingsviewmodel.dart';
+import 'package:emotion_app/ui/mood/settingsViewModel.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -9,12 +9,11 @@ class SettingsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<SettingsViewModel>();
-    final TextEditingController _nameController = TextEditingController(text: vm.userName);
 
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Configurações'),
+          title: const Text('Configurações de Notificação'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
@@ -23,7 +22,6 @@ class SettingsView extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.save),
               onPressed: vm.saveSettings.running ? null : () {
-                vm.setUserName(_nameController.text);
                 vm.saveSettings.execute(null);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Configurações salvas!')),
@@ -39,7 +37,7 @@ class SettingsView extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    // --------- PERFIL ---------
+                    // --------- NOTIFICAÇÕES ---------
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -47,40 +45,7 @@ class SettingsView extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Perfil',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: _nameController,
-                              decoration: const InputDecoration(
-                                labelText: 'Seu nome',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.person),
-                              ),
-                              onChanged: (value) {
-                                vm.setUserName(value);
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // --------- PREFERÊNCIAS ---------
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Preferências',
+                              'Notificações',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -88,9 +53,9 @@ class SettingsView extends StatelessWidget {
                             ),
                             const SizedBox(height: 16),
                             
-                            // Notificações
+                            // Ativar/Desativar Notificações
                             SwitchListTile(
-                              title: const Text('Notificações'),
+                              title: const Text('Notificações Ativas'),
                               subtitle: const Text('Receber lembretes diários'),
                               value: vm.notificationsEnabled,
                               onChanged: (value) {
@@ -99,16 +64,70 @@ class SettingsView extends StatelessWidget {
                               secondary: const Icon(Icons.notifications),
                             ),
 
-                            // Modo escuro
-                            SwitchListTile(
-                              title: const Text('Modo Escuro'),
-                              subtitle: const Text('Usar tema escuro'),
-                              value: vm.darkMode,
-                              onChanged: (value) {
-                                vm.setDarkMode(value);
-                              },
-                              secondary: const Icon(Icons.dark_mode),
+                            const SizedBox(height: 8),
+
+                            // Horário das Notificações
+                            ListTile(
+                              leading: const Icon(Icons.access_time),
+                              title: const Text('Horário das Notificações'),
+                              subtitle: Text(
+                                vm.notificationsEnabled
+                                  ? 'Você receberá notificações às ${vm.notificationTime.format(context)}' // REMOVA AS ASPAS DUPLAS
+                                  : 'As notificações estão desativadas',
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.edit),
+                                onPressed: vm.notificationsEnabled ? () async {
+                                  final TimeOfDay? pickedTime = await showTimePicker(
+                                    context: context,
+                                    initialTime: vm.notificationTime,
+                                    builder: (BuildContext context, Widget? child) {
+                                      return MediaQuery(
+                                        data: MediaQuery.of(context).copyWith(
+                                          alwaysUse24HourFormat: false,
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
+                                  );
+                                  
+                                  if (pickedTime != null) {
+                                    vm.setNotificationTime(pickedTime);
+                                  }
+                                } : null,
+                              ),
+                              onTap: vm.notificationsEnabled ? () async {
+                                final TimeOfDay? pickedTime = await showTimePicker(
+                                  context: context,
+                                  initialTime: vm.notificationTime,
+                                  builder: (BuildContext context, Widget? child) {
+                                    return MediaQuery(
+                                      data: MediaQuery.of(context).copyWith(
+                                        alwaysUse24HourFormat: false,
+                                      ),
+                                      child: child!,
+                                    );
+                                  },
+                                );
+                                
+                                if (pickedTime != null) {
+                                  vm.setNotificationTime(pickedTime);
+                                }
+                              } : null,
                             ),
+
+                            // Mensagem informativa
+                            if (!vm.notificationsEnabled)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text(
+                                  'Ative as notificações para definir o horário',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -116,7 +135,7 @@ class SettingsView extends StatelessWidget {
 
                     const SizedBox(height: 16),
 
-                    // --------- SOBRE ---------
+                    // --------- STATUS ---------
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -124,28 +143,34 @@ class SettingsView extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Sobre',
+                              'Status',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 16),
+                            
+                            // Status das notificações
                             ListTile(
-                              leading: const Icon(Icons.info),
-                              title: const Text('Versão'),
-                              subtitle: const Text('1.0.0'),
-                              onTap: () {},
-                            ),
-                            ListTile(
-                              leading: const Icon(Icons.privacy_tip),
-                              title: const Text('Política de Privacidade'),
-                              onTap: () {},
-                            ),
-                            ListTile(
-                              leading: const Icon(Icons.help),
-                              title: const Text('Ajuda'),
-                              onTap: () {},
+                              leading: Icon(
+                                vm.notificationsEnabled 
+                                    ? Icons.notifications_active 
+                                    : Icons.notifications_off,
+                                color: vm.notificationsEnabled 
+                                    ? Colors.green 
+                                    : Colors.grey,
+                              ),
+                              title: Text(
+                                vm.notificationsEnabled 
+                                    ? 'Notificações Ativas' 
+                                    : 'Notificações Inativas',
+                              ),
+                              subtitle: Text(
+                                vm.notificationsEnabled
+                                    ? 'Você receberá notificações às ${vm.notificationTime.format(context)}'
+                                    : 'As notificações estão desativadas',
+                              ),
                             ),
                           ],
                         ),
