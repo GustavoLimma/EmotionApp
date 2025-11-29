@@ -2,60 +2,87 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:emotion_app/data/repositories/mood_repository.dart';
 import 'package:emotion_app/data/models/mood_entry.dart';
+import 'package:emotion_app/utils/command.dart';
+import 'package:emotion_app/utils/result.dart';
 
 enum DashboardPeriod { weekly, monthly }
 
 class DashboardViewModel extends ChangeNotifier {
   final MoodRepository? _repository;
+
+  // ------------------ COMMANDS ------------------
+  late Command<void, DashboardPeriod> changePeriodCommand;
+  late Command<void, void> loadInitialDataCommand;
+
   DashboardPeriod _period = DashboardPeriod.weekly;
   List<MoodEntry> _allEntries = [];
   String? _errorMessage;
-  
+
   StreamSubscription<List<MoodEntry>>? _entriesSubscription;
 
   DashboardViewModel({MoodRepository? repository}) : _repository = repository {
+    // Inicializa Commands
+    changePeriodCommand = Command<void, DashboardPeriod>(_changePeriod);
+    loadInitialDataCommand = Command<void, void>(_loadInitialData);
+
+    // Stream
     _entriesSubscription = _repository?.entriesStream.listen(_updateData);
-    _loadInitialData();
+
+    // Carrega dados iniciais via Command
+    loadInitialDataCommand.executeNoArgs();
   }
 
   DashboardPeriod get period => _period;
   List<double>? lineChartData;
   Map<String, double>? pieChartData;
+
   String? get errorMessage => _errorMessage;
   bool get hasError => _errorMessage != null;
 
-  Widget? get lineChartWidget {
-    if (lineChartData == null) return null;
-    return _buildBarChart();
+  Widget? get lineChartWidget =>
+      lineChartData == null ? null : _buildBarChart();
+
+  Widget? get pieChartWidget =>
+      pieChartData == null ? null : _buildPieChartVisualization();
+
+  // -----------------------------------------------------------------------------------
+  //                                    COMMAND ACTIONS
+  // -----------------------------------------------------------------------------------
+
+  Future<Result<void>> _changePeriod(DashboardPeriod newPeriod) async {
+    try {
+      _period = newPeriod;
+      _updateCharts();
+      notifyListeners();
+      return Ok(null);
+    } catch (e) {
+      return Error("Erro ao mudar período");
+    }
   }
 
-  Widget? get pieChartWidget {
-    if (pieChartData == null) return null;
-    return _buildPieChartVisualization();
-  }
-
-  void changePeriod(DashboardPeriod newPeriod) {
-    _period = newPeriod;
-    _updateCharts();
-    notifyListeners();
-  }
-
-  Future<void> _loadInitialData() async {
+  Future<Result<void>> _loadInitialData(void _) async {
     try {
       _errorMessage = null;
+
       if (_repository != null) {
         _allEntries = await _repository!.getAll();
         _updateCharts();
         notifyListeners();
       }
+
+      return Ok(null);
     } catch (e) {
       _errorMessage = 'Erro ao carregar dados: $e';
       lineChartData = null;
       pieChartData = null;
       notifyListeners();
+      return Error("Erro ao carregar dados");
     }
   }
 
+  // -----------------------------------------------------------------------------------
+  //                                   STREAM UPDATE
+  // -----------------------------------------------------------------------------------
   void _updateData(List<MoodEntry> entries) {
     try {
       _errorMessage = null;
@@ -68,6 +95,9 @@ class DashboardViewModel extends ChangeNotifier {
     }
   }
 
+  // -----------------------------------------------------------------------------------
+  //                               ATUALIZAÇÃO DE GRÁFICOS
+  // -----------------------------------------------------------------------------------
   void _updateCharts() {
     if (_allEntries.isEmpty) {
       lineChartData = null;
@@ -97,11 +127,11 @@ class DashboardViewModel extends ChangeNotifier {
 
   void _updateWeeklyChart() {
     final now = DateTime.now();
-    final last7Days = List.generate(7, (i) => 
-        DateTime(now.year, now.month, now.day - i));
-    
+    final last7Days =
+        List.generate(7, (i) => DateTime(now.year, now.month, now.day - i));
+
     lineChartData = last7Days.reversed.map((day) {
-      final count = _allEntries.where((entry) => 
+      final count = _allEntries.where((entry) =>
           entry.timestamp.year == day.year &&
           entry.timestamp.month == day.month &&
           entry.timestamp.day == day.day).length;
@@ -111,15 +141,12 @@ class DashboardViewModel extends ChangeNotifier {
 
   void _updateMonthlyChart() {
     final now = DateTime.now();
-    // REMOVA as variáveis não utilizadas:
-    // final firstDayOfMonth = DateTime(now.year, now.month, 1);
-    // final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
-    
-    // Divide o mês em 4 semanas fixas
+
     lineChartData = List<double>.filled(4, 0.0);
-    
+
     for (var entry in _allEntries) {
-      if (entry.timestamp.year == now.year && entry.timestamp.month == now.month) {
+      if (entry.timestamp.year == now.year &&
+          entry.timestamp.month == now.month) {
         final day = entry.timestamp.day;
         final weekIndex = _getWeekIndex(day);
         if (weekIndex >= 0 && weekIndex < 4) {
@@ -136,23 +163,21 @@ class DashboardViewModel extends ChangeNotifier {
     return 3;
   }
 
-  // GRÁFICO DE BARRAS SIMPLIFICADO
+  // -----------------------------------------------------------------------------------
+  //                                 GRÁFICO DE BARRAS
+  // -----------------------------------------------------------------------------------
   Widget _buildBarChart() {
     final maxValue = lineChartData!.reduce((a, b) => a > b ? a : b);
-    
-    List<String> labels;
-    if (_period == DashboardPeriod.weekly) {
-      labels = ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'Hoje'];
-    } else {
-      labels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4+'];
-    }
-    
+
+    List<String> labels =
+        _period == DashboardPeriod.weekly ? ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'Hoje'] : ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4+'];
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
           Text(
-            _period == DashboardPeriod.weekly 
+            _period == DashboardPeriod.weekly
                 ? "Registros dos Últimos 7 Dias"
                 : "Registros do Mês por Semana",
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -168,7 +193,7 @@ class DashboardViewModel extends ChangeNotifier {
                 final height = (value / max) * 120;
                 final barWidth = _period == DashboardPeriod.weekly ? 25 : 30;
                 final fontSize = _period == DashboardPeriod.weekly ? 12 : 11;
-                
+
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -200,9 +225,12 @@ class DashboardViewModel extends ChangeNotifier {
                       width: 45,
                       child: Text(
                         labels[entry.key],
-                        style: TextStyle(fontSize: _period == DashboardPeriod.weekly ? 12 : 10),
                         textAlign: TextAlign.center,
                         maxLines: 2,
+                        style: TextStyle(
+                          fontSize:
+                              _period == DashboardPeriod.weekly ? 12 : 10,
+                        ),
                       ),
                     ),
                   ],
@@ -216,11 +244,9 @@ class DashboardViewModel extends ChangeNotifier {
   }
 
   List<Color> _getBarGradientColors() {
-    if (_period == DashboardPeriod.weekly) {
-      return [Colors.indigo.shade700, Colors.indigo.shade400];
-    } else {
-      return [Colors.purple.shade700, Colors.purple.shade400];
-    }
+    return _period == DashboardPeriod.weekly
+        ? [Colors.indigo.shade700, Colors.indigo.shade400]
+        : [Colors.purple.shade700, Colors.purple.shade400];
   }
 
   Color _getBarColor(double value) {
@@ -230,11 +256,13 @@ class DashboardViewModel extends ChangeNotifier {
     return _period == DashboardPeriod.weekly ? Colors.indigo : Colors.purple;
   }
 
-  // VISUALIZAÇÃO DE PIZZA
+  // -----------------------------------------------------------------------------------
+  //                                 GRÁFICO DE PIZZA
+  // -----------------------------------------------------------------------------------
   Widget _buildPieChartVisualization() {
     final total = pieChartData!.values.reduce((a, b) => a + b).toDouble();
     final maxCount = pieChartData!.values.reduce((a, b) => a > b ? a : b).toDouble();
-    
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -252,9 +280,10 @@ class DashboardViewModel extends ChangeNotifier {
               mainAxisSpacing: 10,
               childAspectRatio: 0.8,
               children: pieChartData!.entries.map((entry) {
-                final percentage = (entry.value / total * 100).round();
+                final percentage =
+                    (entry.value / total * 100).round();
                 final size = (entry.value / maxCount * 40) + 25;
-                
+
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -298,8 +327,8 @@ class DashboardViewModel extends ChangeNotifier {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: _period == DashboardPeriod.weekly 
-                  ? Colors.indigo.shade50 
+              color: _period == DashboardPeriod.weekly
+                  ? Colors.indigo.shade50
                   : Colors.purple.shade50,
               borderRadius: BorderRadius.circular(6),
             ),
@@ -307,11 +336,11 @@ class DashboardViewModel extends ChangeNotifier {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  Icons.analytics, 
-                  color: _period == DashboardPeriod.weekly 
-                      ? Colors.indigo 
-                      : Colors.purple, 
-                  size: 14
+                  Icons.analytics,
+                  color: _period == DashboardPeriod.weekly
+                      ? Colors.indigo
+                      : Colors.purple,
+                  size: 14,
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -319,8 +348,8 @@ class DashboardViewModel extends ChangeNotifier {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: _period == DashboardPeriod.weekly 
-                        ? Colors.indigo 
+                    color: _period == DashboardPeriod.weekly
+                        ? Colors.indigo
                         : Colors.purple,
                   ),
                 ),
@@ -348,7 +377,7 @@ class DashboardViewModel extends ChangeNotifier {
   String _getEmojiName(String emoji) {
     final names = {
       '😀': 'M.Feliz',
-      '🙂': 'Feliz', 
+      '🙂': 'Feliz',
       '😐': 'Neutro',
       '😕': 'Confuso',
       '😢': 'Triste',

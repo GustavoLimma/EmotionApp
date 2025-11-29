@@ -19,9 +19,7 @@ class TipsView extends StatelessWidget {
           actions: [
             IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: () {
-                context.read<TipsViewModel>().refreshTips();
-              },
+               onPressed: () => context.read<TipsViewModel>().refreshTips(),
               tooltip: "Atualizar dicas",
             ),
           ],

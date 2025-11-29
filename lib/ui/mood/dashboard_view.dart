@@ -1,4 +1,3 @@
-// ALTERNATIVA - lib/ui/mood/Dashboard_View.dart (com Scroll)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dashboard_viewmodel.dart';
@@ -26,13 +25,15 @@ class DashboardView extends StatelessWidget {
                     ChoiceChip(
                       label: const Text("Semanal"),
                       selected: vm.period == DashboardPeriod.weekly,
-                      onSelected: (_) => vm.changePeriod(DashboardPeriod.weekly),
+                      onSelected: (_) =>
+                          vm.changePeriodCommand.execute(DashboardPeriod.weekly),
                     ),
                     const SizedBox(width: 10),
                     ChoiceChip(
                       label: const Text("Mensal"),
                       selected: vm.period == DashboardPeriod.monthly,
-                      onSelected: (_) => vm.changePeriod(DashboardPeriod.monthly),
+                      onSelected: (_) =>
+                          vm.changePeriodCommand.execute(DashboardPeriod.monthly),
                     ),
                   ],
                 ),
@@ -41,7 +42,7 @@ class DashboardView extends StatelessWidget {
 
                 // ------------------- GRÁFICO DE LINHA -------------------
                 SizedBox(
-                  height: 250, // Altura fixa
+                  height: 250,
                   child: Card(
                     child: Center(
                       child: vm.lineChartData == null
@@ -56,10 +57,10 @@ class DashboardView extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                // ------------------- GRÁFICO DE PIZZA (MAIOR) -------------------
+                // ------------------- GRÁFICO DE PIZZA -------------------
                 Card(
                   child: Container(
-                    height: 500, // Altura maior para o gráfico de pizza
+                    height: 500,
                     padding: const EdgeInsets.all(16),
                     child: vm.pieChartData == null
                         ? const Center(

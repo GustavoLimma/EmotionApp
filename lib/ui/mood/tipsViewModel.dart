@@ -1,97 +1,112 @@
 import 'package:flutter/material.dart';
 import 'package:emotion_app/data/repositories/mood_repository.dart';
 import 'package:emotion_app/data/models/mood_entry.dart';
+import 'package:emotion_app/utils/command.dart';
+import 'package:emotion_app/utils/result.dart';
 
 class TipsViewModel extends ChangeNotifier {
   final MoodRepository? _repository;
-  final List<MoodEntry> _entries = []; // TORNE FINAL
-  final List<Tip> _tips = []; // TORNE FINAL
+
+  final List<MoodEntry> _entries = [];
+  final List<Tip> _tips = [];
+
+  late Command<void, void> loadTipsCommand;
 
   TipsViewModel({MoodRepository? repository}) : _repository = repository {
-    _loadData();
+    loadTipsCommand = Command<void, void>(_loadTips);
+    loadTipsCommand.executeNoArgs(); // carrega automaticamente
   }
 
   List<Tip> get tips => _tips;
   bool get hasData => _entries.isNotEmpty;
 
-  Future<void> _loadData() async {
-    if (_repository != null) {
-      _entries.addAll(await _repository!.getAll()); // USE addAll
+  // ------------------- COMMAND ACTION -------------------
+  Future<Result<void>> _loadTips(void _) async {
+    try {
+      if (_repository != null) {
+        _entries.clear();
+        _entries.addAll(await _repository!.getAll());
+      }
+
       _generateTips();
       notifyListeners();
+      return Ok(null);
+    } catch (e) {
+      return Error("Erro ao carregar dicas");
     }
   }
 
+  // ------------------- GERAR DICAS -------------------
   void _generateTips() {
     _tips.clear();
 
     if (_entries.isEmpty) {
-      _tips.add(Tip(
-        title: "Comece a registrar seu humor",
-        description: "Registre como você está se sentindo para receber dicas personalizadas",
-        category: TipCategory.general,
-        emoji: "📝",
-      ));
+      _tips.add(
+        Tip(
+          title: "Comece a registrar seu humor",
+          description:
+              "Registre como você está se sentindo para receber dicas personalizadas",
+          category: TipCategory.general,
+          emoji: "📝",
+        ),
+      );
       return;
     }
 
-    final last7Days = _getLast7DaysEntries();
-    final moodAnalysis = _analyzeMoodPatterns(last7Days);
+    final last7 = _getLast7DaysEntries();
+    final analysis = _analyzeMoodPatterns(last7);
 
-    _generateMoodBasedTips(moodAnalysis);
+    _generateMoodBasedTips(analysis);
     _generateGeneralTips();
   }
 
   List<MoodEntry> _getLast7DaysEntries() {
     final now = DateTime.now();
-    final sevenDaysAgo = now.subtract(const Duration(days: 7));
-    
-    return _entries.where((entry) => 
-        entry.timestamp.isAfter(sevenDaysAgo)).toList();
+    final sevenAgo = now.subtract(const Duration(days: 7));
+
+    return _entries.where((e) => e.timestamp.isAfter(sevenAgo)).toList();
   }
 
-  MoodAnalysis _analyzeMoodPatterns(List<MoodEntry> recentEntries) {
-    if (recentEntries.isEmpty) return MoodAnalysis();
+  MoodAnalysis _analyzeMoodPatterns(List<MoodEntry> recent) {
+    if (recent.isEmpty) return MoodAnalysis();
 
-    int sadCount = 0;
-    int stressedCount = 0;
-    int neutralCount = 0;
-    int happyCount = 0;
+    int sad = 0, stressed = 0, neutral = 0, happy = 0;
 
-    for (var entry in recentEntries) {
-      switch (entry.emoji) {
+    for (var e in recent) {
+      switch (e.emoji) {
         case '😢':
         case '😕':
-          sadCount++;
+          sad++;
           break;
         case '😡':
-          stressedCount++;
+          stressed++;
           break;
         case '😐':
-          neutralCount++;
+          neutral++;
           break;
         case '😀':
         case '🙂':
         case '🤩':
-          happyCount++;
+          happy++;
           break;
       }
     }
 
     return MoodAnalysis(
-      totalEntries: recentEntries.length,
-      sadPercentage: (sadCount / recentEntries.length) * 100,
-      stressedPercentage: (stressedCount / recentEntries.length) * 100,
-      neutralPercentage: (neutralCount / recentEntries.length) * 100,
-      happyPercentage: (happyCount / recentEntries.length) * 100,
+      totalEntries: recent.length,
+      sadPercentage: (sad / recent.length) * 100,
+      stressedPercentage: (stressed / recent.length) * 100,
+      neutralPercentage: (neutral / recent.length) * 100,
+      happyPercentage: (happy / recent.length) * 100,
     );
   }
 
-  void _generateMoodBasedTips(MoodAnalysis analysis) {
-    if (analysis.sadPercentage > 30) {
+  void _generateMoodBasedTips(MoodAnalysis a) {
+    if (a.sadPercentage > 30) {
       _tips.add(Tip(
         title: "Atividade Física Leve",
-        description: "Uma caminhada de 15 minutos pode melhorar seu humor naturalmente",
+        description:
+            "Uma caminhada de 15 minutos pode melhorar seu humor naturalmente",
         category: TipCategory.exercise,
         emoji: "🚶‍♂️",
         duration: "15 min",
@@ -99,47 +114,38 @@ class TipsViewModel extends ChangeNotifier {
 
       _tips.add(Tip(
         title: "Meditação Guiada",
-        description: "Experimente uma meditação de 10 minutos para acalmar a mente",
+        description: "Uma meditação curta pode ajudar a acalmar a mente",
         category: TipCategory.meditation,
         emoji: "🧘‍♀️",
         duration: "10 min",
-        resource: "App: Insight Timer",
       ));
     }
 
-    if (analysis.stressedPercentage > 20) {
+    if (a.stressedPercentage > 20) {
       _tips.add(Tip(
         title: "Respiração 4-7-8",
-        description: "Técnica de respiração para reduzir ansiedade instantaneamente",
+        description: "Exercício de respiração para reduzir ansiedade",
         category: TipCategory.meditation,
         emoji: "🌬️",
         duration: "5 min",
       ));
-
-      _tips.add(Tip(
-        title: "Alongamento Corporal",
-        description: "Libere a tensão muscular com alongamentos simples",
-        category: TipCategory.exercise,
-        emoji: "💪",
-        duration: "10 min",
-      ));
     }
 
-    if (analysis.neutralPercentage > 50) {
+    if (a.neutralPercentage > 50) {
       _tips.add(Tip(
         title: "Leitura Inspiradora",
-        description: "Um livro interessante pode estimular novas perspectivas",
+        description: "Leia algo leve para estimular novas ideias",
         category: TipCategory.reading,
         emoji: "📚",
         duration: "20 min",
-        resource: "Sugestão: 'O Poder do Agora'",
       ));
     }
 
-    if (analysis.happyPercentage > 60) {
+    if (a.happyPercentage > 60) {
       _tips.add(Tip(
-        title: "Mantenha o Momentum",
-        description: "Continue com as atividades que estão te fazendo bem!",
+        title: "Continue Assim!",
+        description:
+            "Mantenha as atividades que estão alimentando seu bem-estar!",
         category: TipCategory.general,
         emoji: "🌟",
       ));
@@ -149,41 +155,26 @@ class TipsViewModel extends ChangeNotifier {
   void _generateGeneralTips() {
     _tips.addAll([
       Tip(
-        title: "Journaling Diário",
-        description: "Escrever sobre seus pensamentos pode trazer clareza mental",
+        title: "Journaling",
+        description: "Escrever seus pensamentos melhora o bem-estar emocional",
         category: TipCategory.general,
         emoji: "📓",
         duration: "10 min",
       ),
       Tip(
-        title: "Hidratação Consciente",
-        description: "Beber água regularmente melhora o foco e o bem-estar",
+        title: "Hidratação",
+        description: "Manter-se hidratado impacta diretamente seu humor",
         category: TipCategory.general,
         emoji: "💧",
-      ),
-      Tip(
-        title: "Podcast: Saúde Mental",
-        description: "Episódio sobre gerenciamento de emoções do dia a dia",
-        category: TipCategory.resources,
-        emoji: "🎧",
-        resource: "Podcast: 'Psicologia na Prática'",
-        duration: "45 min",
-      ),
-      Tip(
-        title: "Artigo: Neurociência das Emoções",
-        description: "Entenda como seu cérebro processa diferentes emoções",
-        category: TipCategory.resources,
-        emoji: "🧠",
-        resource: "Leitura online - 8 min",
       ),
     ]);
   }
 
-  void refreshTips() {
-    _loadData();
-  }
+  // Comando para atualizar manualmente
+  void refreshTips() => loadTipsCommand.executeNoArgs();
 }
 
+// --------------------- MODELS -----------------------
 class MoodAnalysis {
   final int totalEntries;
   final double sadPercentage;
@@ -218,13 +209,7 @@ class Tip {
   });
 }
 
-enum TipCategory {
-  meditation,
-  exercise,
-  reading,
-  resources,
-  general,
-}
+enum TipCategory { meditation, exercise, reading, resources, general }
 
 extension TipCategoryExtension on TipCategory {
   String get displayName {

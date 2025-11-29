@@ -8,6 +8,7 @@ import 'package:emotion_app/ui/mood/dashboard_view.dart';
 import 'package:emotion_app/ui/mood/MoodView.dart';
 import 'package:emotion_app/ui/mood/tipsView.dart';
 import 'package:emotion_app/ui/mood/settingsView.dart';
+import 'package:emotion_app/utils/command.dart';
 // import 'firebase_options.dart'; // ✅ MANTENHA (será gerado)
 
 Future<void> main() async {
@@ -44,6 +45,7 @@ class MyApp extends StatelessWidget {
 }
 
 // AppShell permanece igual
+
 class AppShell extends StatelessWidget {
   const AppShell({super.key});
 
@@ -74,12 +76,16 @@ class AppShell extends StatelessWidget {
               ),
             ],
           ),
+
           body: screens[shellVM.currentIndex],
+
           bottomNavigationBar: NavigationBar(
             selectedIndex: shellVM.currentIndex,
-            onDestinationSelected: shellVM.changeIndex,
+            onDestinationSelected: (i) =>
+                shellVM.changeIndexCommand.execute(i),
             destinations: const [
-              NavigationDestination(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+              NavigationDestination(
+                  icon: Icon(Icons.dashboard), label: 'Dashboard'),
               NavigationDestination(icon: Icon(Icons.mood), label: 'Humor'),
               NavigationDestination(icon: Icon(Icons.lightbulb), label: 'Dicas'),
             ],

@@ -1,23 +1,8 @@
-import 'package:flutter/material.dart'; // REMOVA O IMPORT DO FOUNDATION
-import 'package:emotion_app/utils/command.dart';
-import 'package:emotion_app/utils/result.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:emotion_app/data/services/notification_service.dart';
 
 class SettingsViewModel extends ChangeNotifier {
-  SettingsViewModel() {
-    loadSettings = Command<void, void>(_loadSettings);
-    saveSettings = Command<void, void>(_saveSettings);
-    saveNotificationTime = Command<void, TimeOfDay>(_saveNotificationTime);
-    toggleNotifications = Command<void, bool>(_toggleNotifications);
-    
-    loadSettings.execute(null);
-  }
-
-  late Command<void, void> loadSettings;
-  late Command<void, void> saveSettings;
-  late Command<void, TimeOfDay> saveNotificationTime;
-  late Command<void, bool> toggleNotifications;
-
   final NotificationService _notificationService = NotificationService();
 
   bool _notificationsEnabled = true;
@@ -26,87 +11,60 @@ class SettingsViewModel extends ChangeNotifier {
   TimeOfDay _notificationTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay get notificationTime => _notificationTime;
 
-  Future<Result<void>> _loadSettings(void _) async {
-    try {
-      await _notificationService.initialize();
-      
-      await _notificationService.requestNotificationPermission();
-      
-      if (_notificationsEnabled) {
-        await _scheduleNotification();
-      }
-      
-      return Ok(null);
-    } catch (e) {
-      return Error("Erro ao carregar configurações: $e");
-    } finally {
-      notifyListeners();
-    }
+  SettingsViewModel() {
+    _loadSettings();
   }
 
-  Future<Result<void>> _saveSettings(void _) async {
-    try {
-      return Ok(null);
-    } catch (e) {
-      return Error("Erro ao salvar configurações: $e");
-    } finally {
-      notifyListeners();
-    }
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+    
+    final hour = prefs.getInt('notification_hour') ?? 9;
+    final minute = prefs.getInt('notification_minute') ?? 0;
+    _notificationTime = TimeOfDay(hour: hour, minute: minute);
+    
+    await _notificationService.initialize();
+    notifyListeners();
   }
 
-  Future<Result<void>> _saveNotificationTime(TimeOfDay newTime) async {
-    try {
-      _notificationTime = newTime;
-      
-      if (_notificationsEnabled) {
-        await _scheduleNotification();
-      }
-      
-      return Ok(null);
-    } catch (e) {
-      return Error("Erro ao salvar horário: $e");
-    } finally {
-      notifyListeners();
-    }
-  }
+  Future<void> saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notifications_enabled', _notificationsEnabled);
+    await prefs.setInt('notification_hour', _notificationTime.hour);
+    await prefs.setInt('notification_minute', _notificationTime.minute);
 
-  Future<Result<void>> _toggleNotifications(bool enabled) async {
-    try {
-      _notificationsEnabled = enabled;
-      
-      if (enabled) {
-        await _scheduleNotification();
-      } else {
-        await _notificationService.cancelNotification(0);
-      }
-      
-      return Ok(null);
-    } catch (e) {
-      return Error("Erro ao alterar notificações: $e");
-    } finally {
-      notifyListeners();
-    }
-  }
-
-  Future<void> _scheduleNotification() async {
-    try {
-      await _notificationService.scheduleDailyNotification(
-        time: _notificationTime,
-        title: 'Como você está se sentindo?',
-        body: 'Registre seu humor do dia para acompanhar seu bem-estar emocional.',
-        id: 0,
+    if (_notificationsEnabled) {
+      await _notificationService.sendNotification(
+        'Configurações Salvas ✅',
+        'Lembretes ativos para ${_formatTime(_notificationTime)}',
       );
-    } catch (e) {
-      // REMOVA O PRINT E USE debugPrint
-      debugPrint('Erro ao agendar notificação: $e');
     }
+    
+    notifyListeners();
   }
 
   void setNotificationsEnabled(bool value) {
-    toggleNotifications.execute(value);
+    _notificationsEnabled = value;
+    saveSettings();
   }
 
   void setNotificationTime(TimeOfDay time) {
-    saveNotificationTime.execute(time);
+    _notificationTime = time;
+    saveSettings();
+  }
+
+  Future<void> testNotification() async {
+    await _notificationService.sendNotification(
+      'Teste de Notificação',
+      'Notificações funcionando! 🎉',
+    );
+  }
+
+  String _formatTime(TimeOfDay time) {
+    final hour = time.hour;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour > 12 ? hour - 12 : hour;
+    return '$displayHour:$minute $period';
   }
 }
