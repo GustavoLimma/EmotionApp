@@ -2,13 +2,13 @@
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
-import 'package:emotion_app/data/services/mood_service.dart';
-import 'package:emotion_app/data/repositories/mood_repository.dart';
-import 'package:emotion_app/ui/mood/mood_viewmodel.dart';
-import 'package:emotion_app/ui/mood/shellviewmodel.dart';
-import 'package:emotion_app/ui/mood/dashboard_viewmodel.dart';
-import 'package:emotion_app/ui/mood/tipsViewModel.dart';
-import 'package:emotion_app/ui/mood/settingsViewModel.dart';
+import 'package:emotion_app/data/services/humor_service.dart';
+import 'package:emotion_app/data/repositories/humor_repository.dart';
+import 'package:emotion_app/ui/humor/view_model/humor_view_model.dart';
+import 'package:emotion_app/ui/humor/view_model/barra_view_model.dart';
+import 'package:emotion_app/ui/humor/view_model/painel_view_model.dart';
+import 'package:emotion_app/ui/humor/view_model/dicas_view_model.dart';
+import 'package:emotion_app/ui/humor/view_model/notificacoes_view_model.dart';
 
 class ConfigureProviders {
   final List<SingleChildWidget> providers;
@@ -23,7 +23,7 @@ class ConfigureProviders {
     final shellViewModel = ShellViewModel();
     final dashboardViewModel = DashboardViewModel(repository: repository);
     final tipsViewModel = TipsViewModel(repository: repository);
-    final settingsViewModel = SettingsViewModel();
+    final notificationsViewModel = NotificationsViewModel();
 
     return ConfigureProviders(
       providers: [
@@ -38,7 +38,7 @@ class ConfigureProviders {
         ChangeNotifierProvider<ShellViewModel>.value(value: shellViewModel),
         ChangeNotifierProvider<DashboardViewModel>.value(value: dashboardViewModel),
         ChangeNotifierProvider<TipsViewModel>.value(value: tipsViewModel),
-        ChangeNotifierProvider<SettingsViewModel>.value(value: settingsViewModel),
+        ChangeNotifierProvider<NotificationsViewModel>.value(value: notificationsViewModel),
       ],
     );
   }
